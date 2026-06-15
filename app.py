@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pathlib import Path
 
-LOGO_PATH = Path("assets/tradaill_logo.jpg")
+LOGO_PATH = Path("tradaill_logo.jpg")
 
 # -----------------------------
 # Branding

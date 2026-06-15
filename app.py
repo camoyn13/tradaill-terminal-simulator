@@ -3,6 +3,10 @@ import pandas as pd
 import numpy as np
 import math
 
+from pathlib import Path
+
+LOGO_PATH = Path("assets/tradaill_logo.jpg")
+
 # -----------------------------
 # Tradaill Branding
 # -----------------------------

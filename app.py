@@ -2,11 +2,99 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import math
+import requests
+
+@st.cache_data(ttl=900)
+def get_weather(city):
+    geo_url = "https://geocoding-api.open-meteo.com/v1/search"
+    geo_params = {"name": city, "count": 1, "language": "en", "format": "json"}
+
+    geo_response = requests.get(geo_url, params=geo_params, timeout=10)
+    geo_response.raise_for_status()
+    geo_data = geo_response.json()
+
+    if "results" not in geo_data:
+        return None
+
+    location = geo_data["results"][0]
+    lat = location["latitude"]
+    lon = location["longitude"]
+
+    weather_url = "https://api.open-meteo.com/v1/forecast"
+    weather_params = {
+        "latitude": lat,
+        "longitude": lon,
+        "current": "temperature_2m,precipitation,rain,wind_speed_10m",
+        "temperature_unit": "fahrenheit",
+        "wind_speed_unit": "mph",
+        "precipitation_unit": "inch"
+    }
+
+    weather_response = requests.get(weather_url, params=weather_params, timeout=10)
+    weather_response.raise_for_status()
+    weather_data = weather_response.json()
+
+    return {
+        "city": location["name"],
+        "country": location.get("country", ""),
+        "temperature": weather_data["current"]["temperature_2m"],
+        "precipitation": weather_data["current"]["precipitation"],
+        "rain": weather_data["current"]["rain"],
+        "wind_speed": weather_data["current"]["wind_speed_10m"],
+    }
 
 st.set_page_config(page_title="Tradaill Terminal Simulator", layout="wide")
 
 st.title("Tradaill Terminal Simulator")
 st.caption("Marine terminal flow, equipment capacity, and pickup optimization simulator")
+
+st.subheader("Real-Time Weather Conditions")
+
+weather_locations = st.multiselect(
+    "Select terminal locations",
+    [
+        "Boston",
+        "New York",
+        "Los Angeles",
+        "Savannah",
+        "Houston",
+        "Miami",
+        "Rotterdam",
+        "Singapore",
+        "Shanghai",
+        "Colombo",
+        "Buenaventura"
+    ],
+    default=["Boston", "Savannah", "Rotterdam"]
+)
+
+weather_rows = []
+
+for city in weather_locations:
+    try:
+        weather = get_weather(city)
+        if weather:
+            weather_rows.append({
+                "Location": f"{weather['city']}, {weather['country']}",
+                "Temperature": f"{weather['temperature']} °F",
+                "Precipitation": f"{weather['precipitation']} in",
+                "Rain": f"{weather['rain']} in",
+                "Wind Speed": f"{weather['wind_speed']} mph"
+            })
+    except Exception as e:
+        weather_rows.append({
+            "Location": city,
+            "Temperature": "Unavailable",
+            "Precipitation": "Unavailable",
+            "Rain": "Unavailable",
+            "Wind Speed": "Unavailable"
+        })
+
+if weather_rows:
+    weather_df = pd.DataFrame(weather_rows)
+    st.dataframe(weather_df, use_container_width=True)
+else:
+    st.info("Select one or more terminal locations to view weather.")
 
 # -----------------------------
 # Sidebar Inputs

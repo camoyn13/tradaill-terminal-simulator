@@ -402,6 +402,43 @@ c3.metric("Truck Wait Reduction", f"{baseline_wait - optimized_wait:.1f} min")
 
 st.divider()
 
+st.subheader("Estimated Cost & Energy Savings")
+
+cost_col1, cost_col2, cost_col3, cost_col4 = st.columns(4)
+
+cost_col1.metric("Operating Cost Savings", f"${operating_cost_savings:,.0f}")
+cost_col2.metric("Energy Cost Savings", f"${energy_cost_savings:,.0f}")
+cost_col3.metric("Energy Saved", f"{energy_kwh_saved:,.0f} kWh")
+cost_col4.metric("Cost / Move Assumption", f"${cost_per_equipment_move:,.0f}")
+
+cost_df = pd.DataFrame({
+    "Metric": [
+        "Move operating cost",
+        "Energy usage",
+        "Energy cost",
+        "Fuel / maintenance / labor adder",
+        "Total estimated operating cost"
+    ],
+    "Free-Time Model": [
+        f"${baseline_move_cost:,.0f}",
+        f"{baseline_energy_kwh:,.0f} kWh",
+        f"${baseline_energy_cost:,.0f}",
+        f"${baseline_total_moves * fuel_or_maintenance_adder:,.0f}",
+        f"${baseline_total_operating_cost:,.0f}"
+    ],
+    "Optimized Model": [
+        f"${optimized_move_cost:,.0f}",
+        f"{optimized_energy_kwh:,.0f} kWh",
+        f"${optimized_energy_cost:,.0f}",
+        f"${optimized_total_moves * fuel_or_maintenance_adder:,.0f}",
+        f"${optimized_total_operating_cost:,.0f}"
+    ]
+})
+
+st.dataframe(cost_df, use_container_width=True)
+
+st.divider()
+
 st.subheader("Terminal Flow Breakdown")
 
 flow_df = pd.DataFrame({
@@ -433,54 +470,6 @@ equipment_df = pd.DataFrame({
 st.dataframe(equipment_df, use_container_width=True)
 
 st.subheader("Estimated Yard Block Utilization")
-
-st.subheader("Estimated Cost & Energy Savings")
-
-cost_col1, cost_col2, cost_col3, cost_col4 = st.columns(4)
-
-cost_col1.metric(
-    "Operating Cost Savings",
-    f"${operating_cost_savings:,.0f}"
-)
-
-cost_col2.metric(
-    "Energy Cost Savings",
-    f"${energy_cost_savings:,.0f}"
-)
-
-cost_col3.metric(
-    "Energy Saved",
-    f"{energy_kwh_saved:,.0f} kWh"
-)
-
-cost_col4.metric(
-    "Cost / Move Assumption",
-    f"${cost_per_equipment_move:,.0f}"
-)
-
-cost_df = pd.DataFrame({
-    "Metric": [
-        "Move operating cost",
-        "Energy usage",
-        "Energy cost",
-        "Fuel / maintenance / labor adder",
-        "Total estimated operating cost"
-    ],
-    "Free-Time Model": [
-        f"${baseline_move_cost:,.0f}",
-        f"{baseline_energy_kwh:,.0f} kWh",
-        f"${baseline_energy_cost:,.0f}",
-        f"${baseline_total_moves * fuel_or_maintenance_adder:,.0f}",
-        f"${baseline_total_operating_cost:,.0f}"
-    ],
-    "Optimized Model": [
-        f"${optimized_move_cost:,.0f}",
-        f"{optimized_energy_kwh:,.0f} kWh",
-        f"${optimized_energy_cost:,.0f}",
-        f"${optimized_total_moves * fuel_or_maintenance_adder:,.0f}",
-        f"${optimized_total_operating_cost:,.0f}"
-    ]
-})
 
 st.dataframe(cost_df, use_container_width=True)
 

@@ -13,72 +13,70 @@ LOGO_PATH = Path("assets/tradaill_logo.jpg")
 
 st.markdown("""
 <style>
-
     .stApp {
-        background-color: #0B1117;
-        color: #E6EEF5;
+        background-color: #062B38;
+        color: #F4F7F8;
     }
 
     section[data-testid="stSidebar"] {
-        background-color: #111A22;
+        background-color: #073442;
+        border-right: 1px solid #0F5264;
     }
 
-    h1, h2, h3, h4 {
-        color: #2DD4BF;
+    h1, h2, h3 {
+        color: #54E084;
         font-weight: 700;
     }
 
     .stMetric {
-        background-color: #16212B;
-        border: 1px solid #233140;
-        padding: 10px;
-        border-radius: 10px;
-    }
-
-    div[data-testid="stDataFrame"] {
-        background-color: #16212B;
-        border-radius: 8px;
-    }
-
-    .stAlert {
-        border-radius: 8px;
+        background-color: #083D4C;
+        border: 1px solid #1B6C7D;
+        padding: 14px;
+        border-radius: 12px;
     }
 
     .tradaill-header {
-        background: linear-gradient(90deg, #111A22 0%, #16212B 100%);
-        padding: 25px;
-        border-radius: 14px;
-        border: 1px solid #233140;
+        background: linear-gradient(90deg, #073442 0%, #062B38 100%);
+        padding: 24px;
+        border-radius: 16px;
+        border: 1px solid #1B6C7D;
         margin-bottom: 25px;
     }
 
     .tradaill-title {
-        font-size: 42px;
+        font-size: 34px;
         font-weight: 800;
-        color: #2DD4BF;
-        margin-bottom: 0px;
+        color: #FFFFFF;
+        letter-spacing: 1px;
     }
 
     .tradaill-subtitle {
-        font-size: 18px;
-        color: #A8BACB;
+        font-size: 16px;
+        color: #B8D8DE;
+        margin-top: 6px;
     }
-
+</style>
+""", unsafe_allow_html=True)
 </style>
 """, unsafe_allow_html=True)
 
 st.set_page_config(page_title="Tradaill Terminal Simulator", layout="wide")
 
-st.markdown("""
-<div class="tradaill-header">
-    <div class="tradaill-title">
-        TRADAILL TERMINAL SIMULATOR
+col_logo, col_title = st.columns([1, 4])
+
+with col_logo:
+    if LOGO_PATH.exists():
+        st.image(str(LOGO_PATH), width=260)
+
+with col_title:
+    st.markdown("""
+    <div class="tradaill-header">
+        <div class="tradaill-title">TERMINAL SIMULATOR</div>
+        <div class="tradaill-subtitle">
+            Marine terminal optimization • crane movement simulation • appointment-based yard flow
+        </div>
     </div>
-    <div class="tradaill-subtitle">
-        Marine terminal optimization • crane movement simulation • appointment-based yard flow
-    </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 st.info(
     "Tradaill integrates terminal operations, truck scheduling, and compliance workflows "

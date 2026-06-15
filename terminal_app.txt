@@ -1,0 +1,7 @@
+```python id="x4qz0n"
+import streamlit as st
+
+st.title("Tradaill Terminal Simulator")
+
+st.write("Simulator is running successfully.")
+```

@@ -3,88 +3,10 @@ import pandas as pd
 import numpy as np
 import math
 
-from pathlib import Path
+st.set_page_config(page_title="Tradaill Terminal Simulator", layout="wide")
 
-from pathlib import Path
-
-LOGO_PATH = Path("tradaill_logo.jpg")
-
-# -----------------------------
-# Branding
-# -----------------------------
-
-st.markdown(
-    """
-    <style>
-
-    .stApp {
-        background-color: #062B38;
-        color: #F4F7F8;
-    }
-
-    section[data-testid="stSidebar"] {
-        background-color: #073442;
-        border-right: 1px solid #0F5264;
-    }
-
-    h1, h2, h3 {
-        color: #54E084;
-        font-weight: 700;
-    }
-
-    .stMetric {
-        background-color: #083D4C;
-        border: 1px solid #1B6C7D;
-        padding: 14px;
-        border-radius: 12px;
-    }
-
-    .tradaill-header {
-        background: linear-gradient(90deg, #073442 0%, #062B38 100%);
-        padding: 24px;
-        border-radius: 16px;
-        border: 1px solid #1B6C7D;
-        margin-bottom: 25px;
-    }
-
-    .tradaill-title {
-        font-size: 34px;
-        font-weight: 800;
-        color: #FFFFFF;
-        letter-spacing: 1px;
-    }
-
-    .tradaill-subtitle {
-        font-size: 16px;
-        color: #B8D8DE;
-        margin-top: 6px;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-col_logo, col_title = st.columns([1, 4])
-
-with col_logo:
-    if LOGO_PATH.exists():
-        st.image(str(LOGO_PATH), width=260)
-
-with col_title:
-    st.markdown(
-        """
-        <div class="tradaill-header">
-            <div class="tradaill-title">
-                TERMINAL SIMULATOR
-            </div>
-            <div class="tradaill-subtitle">
-                Marine terminal optimization | crane movement simulation | appointment-based yard flow
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+st.title("Tradaill Terminal Simulator")
+st.caption("Marine terminal flow, equipment capacity, and pickup optimization simulator")
 
 # -----------------------------
 # Sidebar Inputs
@@ -375,57 +297,5 @@ yard_df = pd.DataFrame({
 
 st.bar_chart(yard_df.set_index("Block")["Utilization"])
 st.dataframe(yard_df, use_container_width=True)
-
-st.subheader("Model Logic")
-
-logic = pd.DataFrame({
-    "Component": [
-        "Yard Utilization",
-        "Dwell Time",
-        "Truck Appointment Capacity",
-        "Equipment Capacity",
-        "Customs Hold Rate",
-        "Straddle Carrier Flexibility",
-        "Yard Imbalance"
-    ],
-    "How It Affects the Model": [
-        "Higher utilization increases congestion, rehandles, and wait time.",
-        "Longer dwell time increases average yard inventory even if weekly vessel volume stays constant.",
-        "If pickup capacity is below import volume, the model flags backlog risk.",
-        "RTG, RMG, and straddle productivity determines how many weekly moves the terminal can absorb.",
-        "Held containers create inefficient stacking and reduce access to released containers.",
-        "Straddles reduce rehandle pressure because they can recover containers across the yard.",
-        "Uneven distribution increases travel time, buried containers, and congestion."
-    ]
-})
-
-st.dataframe(logic, use_container_width=True)
-
-output = pd.DataFrame([{
-    "yard_capacity": yard_capacity,
-    "avg_yard_inventory": avg_yard_inventory,
-    "yard_utilization": yard_utilization,
-    "weekly_volume": weekly_volume,
-    "weekly_imports": weekly_imports,
-    "exports_per_week": exports_per_week,
-    "empty_returns_per_week": empty_returns_per_week,
-    "baseline_total_moves": baseline_total_moves,
-    "optimized_total_moves": optimized_total_moves,
-    "baseline_rehandles": baseline_rehandles,
-    "optimized_rehandles": optimized_rehandles,
-    "baseline_wait_minutes": baseline_wait,
-    "optimized_wait_minutes": optimized_wait,
-    "weekly_equipment_capacity": weekly_equipment_capacity,
-    "truck_weekly_capacity": truck_weekly_capacity,
-}])
-
-csv = output.to_csv(index=False).encode("utf-8")
-
-st.download_button(
-    "Download Simulation Results CSV",
-    csv,
-    "tradaill_terminal_simulation_results.csv",
-    "text/csv"
-)
 
 st.caption("Prototype simulator. Results are estimated and should be calibrated against actual terminal move logs, truck turn times, dwell data, and equipment productivity.")

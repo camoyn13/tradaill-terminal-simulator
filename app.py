@@ -152,6 +152,36 @@ customs_hold_rate = st.sidebar.slider("Customs/document hold rate", 0.0, 0.5, 0.
 late_truck_rate = st.sidebar.slider("Late / missed appointment rate", 0.0, 0.5, 0.12)
 yard_imbalance = st.sidebar.slider("Yard imbalance / poor distribution", 0.0, 1.0, 0.35)
 
+st.sidebar.header("Cost & Energy Assumptions")
+
+cost_per_equipment_move = st.sidebar.number_input(
+    "Average cost per container move ($)",
+    min_value=0.0,
+    value=85.0,
+    step=5.0
+)
+
+energy_kwh_per_move = st.sidebar.number_input(
+    "Average energy use per crane/container move (kWh)",
+    min_value=0.0,
+    value=12.0,
+    step=1.0
+)
+
+electricity_cost_per_kwh = st.sidebar.number_input(
+    "Electricity / energy cost per kWh ($)",
+    min_value=0.0,
+    value=0.18,
+    step=0.01
+)
+
+fuel_or_maintenance_adder = st.sidebar.number_input(
+    "Fuel, maintenance, labor adder per move ($)",
+    min_value=0.0,
+    value=20.0,
+    step=5.0
+)
+
 # -----------------------------
 # Core Calculations
 # -----------------------------
@@ -181,6 +211,27 @@ weekly_equipment_capacity = (
     + rmgs * rmg_moves_per_hour
     + straddles * straddle_moves_per_hour
 ) * equipment_hours_per_day * 7
+
+baseline_move_cost = baseline_total_moves * cost_per_equipment_move
+optimized_move_cost = optimized_total_moves * cost_per_equipment_move
+
+baseline_energy_kwh = baseline_total_moves * energy_kwh_per_move
+optimized_energy_kwh = optimized_total_moves * energy_kwh_per_move
+
+baseline_energy_cost = baseline_energy_kwh * electricity_cost_per_kwh
+optimized_energy_cost = optimized_energy_kwh * electricity_cost_per_kwh
+
+baseline_total_operating_cost = baseline_move_cost + baseline_energy_cost + (
+    baseline_total_moves * fuel_or_maintenance_adder
+)
+
+optimized_total_operating_cost = optimized_move_cost + optimized_energy_cost + (
+    optimized_total_moves * fuel_or_maintenance_adder
+)
+
+operating_cost_savings = baseline_total_operating_cost - optimized_total_operating_cost
+energy_cost_savings = baseline_energy_cost - optimized_energy_cost
+energy_kwh_saved = baseline_energy_kwh - optimized_energy_kwh
 
 # -----------------------------
 # More Realistic Move Logic
@@ -366,6 +417,56 @@ st.dataframe(equipment_df, use_container_width=True)
 
 st.subheader("Estimated Yard Block Utilization")
 
+st.subheader("Estimated Cost & Energy Savings")
+
+cost_col1, cost_col2, cost_col3, cost_col4 = st.columns(4)
+
+cost_col1.metric(
+    "Operating Cost Savings",
+    f"${operating_cost_savings:,.0f}"
+)
+
+cost_col2.metric(
+    "Energy Cost Savings",
+    f"${energy_cost_savings:,.0f}"
+)
+
+cost_col3.metric(
+    "Energy Saved",
+    f"{energy_kwh_saved:,.0f} kWh"
+)
+
+cost_col4.metric(
+    "Cost / Move Assumption",
+    f"${cost_per_equipment_move:,.0f}"
+)
+
+cost_df = pd.DataFrame({
+    "Metric": [
+        "Move operating cost",
+        "Energy usage",
+        "Energy cost",
+        "Fuel / maintenance / labor adder",
+        "Total estimated operating cost"
+    ],
+    "Free-Time Model": [
+        f"${baseline_move_cost:,.0f}",
+        f"{baseline_energy_kwh:,.0f} kWh",
+        f"${baseline_energy_cost:,.0f}",
+        f"${baseline_total_moves * fuel_or_maintenance_adder:,.0f}",
+        f"${baseline_total_operating_cost:,.0f}"
+    ],
+    "Optimized Model": [
+        f"${optimized_move_cost:,.0f}",
+        f"{optimized_energy_kwh:,.0f} kWh",
+        f"${optimized_energy_cost:,.0f}",
+        f"${optimized_total_moves * fuel_or_maintenance_adder:,.0f}",
+        f"${optimized_total_operating_cost:,.0f}"
+    ]
+})
+
+st.dataframe(cost_df, use_container_width=True)
+
 np.random.seed(7)
 block_ids = [f"Block {i+1}" for i in range(yard_blocks)]
 
@@ -385,5 +486,56 @@ yard_df = pd.DataFrame({
 
 st.bar_chart(yard_df.set_index("Block")["Utilization"])
 st.dataframe(yard_df, use_container_width=True)
+
+# -----------------------------
+# Download Results
+# -----------------------------
+
+output = pd.DataFrame([{
+    "yard_capacity": yard_capacity,
+    "avg_yard_inventory": avg_yard_inventory,
+    "yard_utilization": yard_utilization,
+    "weekly_volume": weekly_volume,
+    "weekly_imports": weekly_imports,
+    "exports_per_week": exports_per_week,
+    "empty_returns_per_week": empty_returns_per_week,
+
+    "baseline_total_moves": baseline_total_moves,
+    "optimized_total_moves": optimized_total_moves,
+
+    "baseline_rehandles": baseline_rehandles,
+    "optimized_rehandles": optimized_rehandles,
+
+    "baseline_wait_minutes": baseline_wait,
+    "optimized_wait_minutes": optimized_wait,
+
+    "weekly_equipment_capacity": weekly_equipment_capacity,
+    "truck_weekly_capacity": truck_weekly_capacity,
+
+    "cost_per_equipment_move": cost_per_equipment_move,
+    "energy_kwh_per_move": energy_kwh_per_move,
+    "electricity_cost_per_kwh": electricity_cost_per_kwh,
+    "fuel_or_maintenance_adder": fuel_or_maintenance_adder,
+
+    "baseline_total_operating_cost": baseline_total_operating_cost,
+    "optimized_total_operating_cost": optimized_total_operating_cost,
+
+    "operating_cost_savings": operating_cost_savings,
+
+    "baseline_energy_kwh": baseline_energy_kwh,
+    "optimized_energy_kwh": optimized_energy_kwh,
+
+    "energy_kwh_saved": energy_kwh_saved,
+    "energy_cost_savings": energy_cost_savings,
+}])
+
+csv = output.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    "Download Simulation Results CSV",
+    csv,
+    "tradaill_terminal_simulation_results.csv",
+    "text/csv"
+)
 
 st.caption("Prototype simulator. Results are estimated and should be calibrated against actual terminal move logs, truck turn times, dwell data, and equipment productivity.")

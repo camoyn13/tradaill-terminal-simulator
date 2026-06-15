@@ -212,26 +212,7 @@ weekly_equipment_capacity = (
     + straddles * straddle_moves_per_hour
 ) * equipment_hours_per_day * 7
 
-baseline_move_cost = baseline_total_moves * cost_per_equipment_move
-optimized_move_cost = optimized_total_moves * cost_per_equipment_move
 
-baseline_energy_kwh = baseline_total_moves * energy_kwh_per_move
-optimized_energy_kwh = optimized_total_moves * energy_kwh_per_move
-
-baseline_energy_cost = baseline_energy_kwh * electricity_cost_per_kwh
-optimized_energy_cost = optimized_energy_kwh * electricity_cost_per_kwh
-
-baseline_total_operating_cost = baseline_move_cost + baseline_energy_cost + (
-    baseline_total_moves * fuel_or_maintenance_adder
-)
-
-optimized_total_operating_cost = optimized_move_cost + optimized_energy_cost + (
-    optimized_total_moves * fuel_or_maintenance_adder
-)
-
-operating_cost_savings = baseline_total_operating_cost - optimized_total_operating_cost
-energy_cost_savings = baseline_energy_cost - optimized_energy_cost
-energy_kwh_saved = baseline_energy_kwh - optimized_energy_kwh
 
 # -----------------------------
 # More Realistic Move Logic
@@ -289,6 +270,42 @@ optimized_rehandles = weekly_volume * optimized_rehandle_rate
 
 baseline_total_moves = base_lift_moves + baseline_rehandles
 optimized_total_moves = base_lift_moves + optimized_rehandles
+
+baseline_move_cost = baseline_total_moves * cost_per_equipment_move
+optimized_move_cost = optimized_total_moves * cost_per_equipment_move
+
+baseline_energy_kwh = baseline_total_moves * energy_kwh_per_move
+optimized_energy_kwh = optimized_total_moves * energy_kwh_per_move
+
+baseline_energy_cost = baseline_energy_kwh * electricity_cost_per_kwh
+optimized_energy_cost = optimized_energy_kwh * electricity_cost_per_kwh
+
+baseline_total_operating_cost = (
+    baseline_move_cost
+    + baseline_energy_cost
+    + (baseline_total_moves * fuel_or_maintenance_adder)
+)
+
+optimized_total_operating_cost = (
+    optimized_move_cost
+    + optimized_energy_cost
+    + (optimized_total_moves * fuel_or_maintenance_adder)
+)
+
+operating_cost_savings = (
+    baseline_total_operating_cost
+    - optimized_total_operating_cost
+)
+
+energy_cost_savings = (
+    baseline_energy_cost
+    - optimized_energy_cost
+)
+
+energy_kwh_saved = (
+    baseline_energy_kwh
+    - optimized_energy_kwh
+)
 
 equipment_utilization_baseline = baseline_total_moves / weekly_equipment_capacity if weekly_equipment_capacity else 0
 equipment_utilization_optimized = optimized_total_moves / weekly_equipment_capacity if weekly_equipment_capacity else 0

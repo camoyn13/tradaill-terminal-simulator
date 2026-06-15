@@ -5,14 +5,18 @@ import math
 
 from pathlib import Path
 
+from pathlib import Path
+
 LOGO_PATH = Path("assets/tradaill_logo.jpg")
 
 # -----------------------------
-# Tradaill Branding
+# Branding
 # -----------------------------
 
-st.markdown("""
-<style>
+st.markdown(
+    """
+    <style>
+
     .stApp {
         background-color: #062B38;
         color: #F4F7F8;
@@ -55,12 +59,11 @@ st.markdown("""
         color: #B8D8DE;
         margin-top: 6px;
     }
-</style>
-""", unsafe_allow_html=True)
-</style>
-""", unsafe_allow_html=True)
 
-st.set_page_config(page_title="Tradaill Terminal Simulator", layout="wide")
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 col_logo, col_title = st.columns([1, 4])
 
@@ -69,19 +72,19 @@ with col_logo:
         st.image(str(LOGO_PATH), width=260)
 
 with col_title:
-    st.markdown("""
-    <div class="tradaill-header">
-        <div class="tradaill-title">TERMINAL SIMULATOR</div>
-        <div class="tradaill-subtitle">
-            Marine terminal optimization | crane movement simulation | appointment-based yard flow
+    st.markdown(
+        """
+        <div class="tradaill-header">
+            <div class="tradaill-title">
+                TERMINAL SIMULATOR
+            </div>
+            <div class="tradaill-subtitle">
+                Marine terminal optimization | crane movement simulation | appointment-based yard flow
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.info(
-    "Tradaill integrates terminal operations, truck scheduling, and compliance workflows "
-    "through coordinated yard optimization."
-)
+        """,
+        unsafe_allow_html=True
+    )
 
 # -----------------------------
 # Sidebar Inputs

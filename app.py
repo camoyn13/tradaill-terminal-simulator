@@ -73,7 +73,7 @@ with col_title:
     <div class="tradaill-header">
         <div class="tradaill-title">TERMINAL SIMULATOR</div>
         <div class="tradaill-subtitle">
-            Marine terminal optimization • crane movement simulation • appointment-based yard flow
+            Marine terminal optimization | crane movement simulation | appointment-based yard flow
         </div>
     </div>
     """, unsafe_allow_html=True)

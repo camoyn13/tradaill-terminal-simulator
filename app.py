@@ -3,10 +3,83 @@ import pandas as pd
 import numpy as np
 import math
 
+# -----------------------------
+# Tradaill Branding
+# -----------------------------
+
+st.markdown("""
+<style>
+
+    .stApp {
+        background-color: #0B1117;
+        color: #E6EEF5;
+    }
+
+    section[data-testid="stSidebar"] {
+        background-color: #111A22;
+    }
+
+    h1, h2, h3, h4 {
+        color: #2DD4BF;
+        font-weight: 700;
+    }
+
+    .stMetric {
+        background-color: #16212B;
+        border: 1px solid #233140;
+        padding: 10px;
+        border-radius: 10px;
+    }
+
+    div[data-testid="stDataFrame"] {
+        background-color: #16212B;
+        border-radius: 8px;
+    }
+
+    .stAlert {
+        border-radius: 8px;
+    }
+
+    .tradaill-header {
+        background: linear-gradient(90deg, #111A22 0%, #16212B 100%);
+        padding: 25px;
+        border-radius: 14px;
+        border: 1px solid #233140;
+        margin-bottom: 25px;
+    }
+
+    .tradaill-title {
+        font-size: 42px;
+        font-weight: 800;
+        color: #2DD4BF;
+        margin-bottom: 0px;
+    }
+
+    .tradaill-subtitle {
+        font-size: 18px;
+        color: #A8BACB;
+    }
+
+</style>
+""", unsafe_allow_html=True)
+
 st.set_page_config(page_title="Tradaill Terminal Simulator", layout="wide")
 
-st.title("Tradaill Terminal Simulator")
-st.caption("Marine terminal flow, equipment capacity, and pickup optimization simulator")
+st.markdown("""
+<div class="tradaill-header">
+    <div class="tradaill-title">
+        TRADAILL TERMINAL SIMULATOR
+    </div>
+    <div class="tradaill-subtitle">
+        Marine terminal optimization • crane movement simulation • appointment-based yard flow
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.info(
+    "Tradaill integrates terminal operations, truck scheduling, and compliance workflows "
+    "through coordinated yard optimization."
+)
 
 # -----------------------------
 # Sidebar Inputs

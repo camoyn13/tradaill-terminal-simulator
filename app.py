@@ -251,6 +251,82 @@ rail_delay_rate = st.sidebar.slider(
     step=0.05
 )
 
+st.sidebar.header("Phase 2.5: Dynamic Rail Routing")
+
+primary_rail_ramp = st.sidebar.selectbox(
+    "Primary inland rail ramp",
+    ["Chicago", "Memphis", "Kansas City", "Atlanta", "Dallas", "Columbus", "Charlotte"]
+)
+
+secondary_rail_ramp = st.sidebar.selectbox(
+    "Secondary / overflow rail ramp",
+    ["Chicago", "Memphis", "Kansas City", "Atlanta", "Dallas", "Columbus", "Charlotte"],
+    index=1
+)
+
+primary_ramp_capacity_per_day = st.sidebar.number_input(
+    "Primary ramp daily capacity",
+    min_value=1,
+    value=250
+)
+
+secondary_ramp_capacity_per_day = st.sidebar.number_input(
+    "Secondary ramp daily capacity",
+    min_value=1,
+    value=180
+)
+
+primary_ramp_dwell_days = st.sidebar.number_input(
+    "Primary ramp dwell days",
+    min_value=0.0,
+    value=2.0,
+    step=0.5
+)
+
+secondary_ramp_dwell_days = st.sidebar.number_input(
+    "Secondary ramp dwell days",
+    min_value=0.0,
+    value=2.5,
+    step=0.5
+)
+
+primary_rail_cost_per_container = st.sidebar.number_input(
+    "Primary rail cost/container ($)",
+    min_value=0.0,
+    value=950.0,
+    step=25.0
+)
+
+secondary_rail_cost_per_container = st.sidebar.number_input(
+    "Secondary rail cost/container ($)",
+    min_value=0.0,
+    value=1050.0,
+    step=25.0
+)
+
+secondary_extra_truck_miles = st.sidebar.number_input(
+    "Extra truck miles from secondary ramp",
+    min_value=0.0,
+    value=85.0,
+    step=5.0
+)
+
+truck_cost_per_mile = st.sidebar.number_input(
+    "Truck cost per mile from inland ramp ($)",
+    min_value=0.0,
+    value=3.25,
+    step=0.25
+)
+
+routing_cost_weight = st.sidebar.slider(
+    "Routing priority: cost vs congestion",
+    min_value=0.0,
+    max_value=1.0,
+    value=0.55,
+    step=0.05,
+    help="0 = prioritize congestion relief, 1 = prioritize lowest cost"
+)
+
 st.sidebar.header("Operational Assumptions")
 
 customs_hold_rate = st.sidebar.slider("Customs/document hold rate", 0.0, 0.5, 0.08)
@@ -334,6 +410,97 @@ baseline_inland_congestion_score = min(
 optimized_inland_congestion_score = min(
     100,
     baseline_inland_congestion_score * 0.72
+)
+
+# -----------------------------
+# Phase 2.5: Dynamic Rail Routing
+# -----------------------------
+
+primary_weekly_capacity = primary_ramp_capacity_per_day * 7
+secondary_weekly_capacity = secondary_ramp_capacity_per_day * 7
+
+primary_direct_volume = rail_imports
+
+primary_direct_utilization = (
+    primary_direct_volume / primary_weekly_capacity
+    if primary_weekly_capacity else 0
+)
+
+primary_direct_backlog = max(
+    0,
+    primary_direct_volume - primary_weekly_capacity
+)
+
+overflow_to_secondary = max(
+    0,
+    primary_direct_volume - (primary_weekly_capacity * 0.85)
+)
+
+overflow_to_secondary = min(
+    overflow_to_secondary,
+    secondary_weekly_capacity
+)
+
+primary_optimized_volume = primary_direct_volume - overflow_to_secondary
+secondary_optimized_volume = overflow_to_secondary
+
+primary_optimized_utilization = (
+    primary_optimized_volume / primary_weekly_capacity
+    if primary_weekly_capacity else 0
+)
+
+secondary_optimized_utilization = (
+    secondary_optimized_volume / secondary_weekly_capacity
+    if secondary_weekly_capacity else 0
+)
+
+primary_congestion_cost = max(0, primary_direct_utilization - 0.85) * 450
+secondary_congestion_cost = max(0, secondary_optimized_utilization - 0.85) * 450
+
+primary_total_route_cost = (
+    primary_rail_cost_per_container
+    + primary_ramp_dwell_days * 125
+    + primary_congestion_cost
+)
+
+secondary_total_route_cost = (
+    secondary_rail_cost_per_container
+    + secondary_ramp_dwell_days * 125
+    + secondary_extra_truck_miles * truck_cost_per_mile
+    + secondary_congestion_cost
+)
+
+cost_gap = secondary_total_route_cost - primary_total_route_cost
+
+primary_route_score = (
+    routing_cost_weight * primary_total_route_cost
+    + (1 - routing_cost_weight) * primary_direct_utilization * 1000
+)
+
+secondary_route_score = (
+    routing_cost_weight * secondary_total_route_cost
+    + (1 - routing_cost_weight) * secondary_optimized_utilization * 1000
+)
+
+dynamic_routing_recommendation = (
+    f"Use {secondary_rail_ramp} as overflow relief"
+    if primary_direct_utilization > 0.85 and secondary_route_score < primary_route_score * 1.25
+    else f"Keep majority of volume routed through {primary_rail_ramp}"
+)
+
+dynamic_routing_savings = max(
+    0,
+    primary_direct_backlog * 185
+    - (overflow_to_secondary * max(0, cost_gap))
+)
+
+weighted_avg_route_cost = (
+    (
+        primary_optimized_volume * primary_total_route_cost
+        + secondary_optimized_volume * secondary_total_route_cost
+    )
+    / rail_imports
+    if rail_imports else 0
 )
 
 estimated_rail_backlog = max(0, rail_imports - rail_departure_capacity)
@@ -587,6 +754,60 @@ if inland_ramp_utilization > 0.85:
         "Inland ramp utilization is high. Destination ramp congestion may delay final delivery."
     )
 
+st.divider()
+
+st.subheader("Phase 2.5: Dynamic Inland Rail Routing")
+
+route_col1, route_col2, route_col3, route_col4 = st.columns(4)
+
+route_col1.metric("Primary Ramp", primary_rail_ramp)
+route_col2.metric("Overflow Ramp", secondary_rail_ramp)
+route_col3.metric("Overflow Volume", f"{overflow_to_secondary:,.0f}")
+route_col4.metric("Weighted Route Cost", f"${weighted_avg_route_cost:,.0f}")
+
+routing_df = pd.DataFrame({
+    "Metric": [
+        "Primary ramp",
+        "Secondary ramp",
+        "Primary weekly capacity",
+        "Secondary weekly capacity",
+        "Direct primary utilization",
+        "Optimized primary utilization",
+        "Optimized secondary utilization",
+        "Primary route cost/container",
+        "Secondary route cost/container",
+        "Estimated dynamic routing savings",
+        "Routing recommendation"
+    ],
+    "Value": [
+        primary_rail_ramp,
+        secondary_rail_ramp,
+        f"{primary_weekly_capacity:,.0f}",
+        f"{secondary_weekly_capacity:,.0f}",
+        f"{primary_direct_utilization:.1%}",
+        f"{primary_optimized_utilization:.1%}",
+        f"{secondary_optimized_utilization:.1%}",
+        f"${primary_total_route_cost:,.0f}",
+        f"${secondary_total_route_cost:,.0f}",
+        f"${dynamic_routing_savings:,.0f}",
+        dynamic_routing_recommendation
+    ]
+})
+
+st.dataframe(routing_df, use_container_width=True)
+
+if primary_direct_utilization > 0.85:
+    st.warning(
+        f"{primary_rail_ramp} is above 85% utilization. "
+        f"Overflow routing to {secondary_rail_ramp} may reduce backlog risk."
+    )
+
+if secondary_optimized_utilization > 0.85:
+    st.warning(
+        f"{secondary_rail_ramp} is also highly utilized. "
+        "A third routing option may be needed."
+    )
+
 st.subheader("Estimated Improvement")
 
 c1, c2, c3 = st.columns(3)
@@ -728,6 +949,19 @@ output = pd.DataFrame([{
 
     "energy_kwh_saved": energy_kwh_saved,
     "energy_cost_savings": energy_cost_savings,
+    "primary_rail_ramp": primary_rail_ramp,
+    "secondary_rail_ramp": secondary_rail_ramp,
+    "primary_weekly_capacity": primary_weekly_capacity,
+    "secondary_weekly_capacity": secondary_weekly_capacity,
+    "primary_direct_utilization": primary_direct_utilization,
+    "primary_optimized_utilization": primary_optimized_utilization,
+    "secondary_optimized_utilization": secondary_optimized_utilization,
+    "overflow_to_secondary": overflow_to_secondary,
+    "primary_total_route_cost": primary_total_route_cost,
+    "secondary_total_route_cost": secondary_total_route_cost,
+    "weighted_avg_route_cost": weighted_avg_route_cost,
+    "dynamic_routing_savings": dynamic_routing_savings,
+    "dynamic_routing_recommendation": dynamic_routing_recommendation,
 }])
 
 csv = output.to_csv(index=False).encode("utf-8")

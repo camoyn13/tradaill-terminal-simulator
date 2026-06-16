@@ -741,7 +741,6 @@ weekly_equipment_capacity = (
 ) * equipment_hours_per_day * 7
 
 
-
 # -----------------------------
 # More Realistic Move Logic
 # -----------------------------
@@ -863,6 +862,33 @@ if appointment_model == "RAV Appointment-Based Pickup":
 
 truck_capacity_warning = truck_capacity_ratio < 1
 
+def current_scenario_snapshot():
+    annual_multiplier = 52
+
+    total_weekly_savings = (
+        operating_cost_savings
+        + dynamic_routing_savings
+        + dry_run_cost_savings
+        + compliance_storage_cost_savings
+    )
+
+    return {
+        "yard_utilization": yard_utilization,
+        "weekly_volume": weekly_volume,
+        "move_reduction": baseline_total_moves - optimized_total_moves,
+        "rehandle_reduction": baseline_rehandles - optimized_rehandles,
+        "wait_reduction": baseline_wait - optimized_wait,
+        "operating_cost_savings": operating_cost_savings,
+        "energy_cost_savings": energy_cost_savings,
+        "energy_kwh_saved": energy_kwh_saved,
+        "rail_cycle_savings_days": rail_cycle_savings_days,
+        "dynamic_routing_savings": dynamic_routing_savings,
+        "dry_run_cost_savings": dry_run_cost_savings,
+        "compliance_storage_cost_savings": compliance_storage_cost_savings,
+        "total_weekly_savings": total_weekly_savings,
+        "total_annual_savings": total_weekly_savings * annual_multiplier,
+    }
+
 # -----------------------------
 # Dashboard
 # -----------------------------
@@ -873,6 +899,113 @@ col1.metric("Static Yard Capacity", f"{yard_capacity:,.0f} slots")
 col2.metric("Avg Yard Inventory", f"{avg_yard_inventory:,.0f} containers")
 col3.metric("Yard Utilization", f"{yard_utilization:.1%}")
 col4.metric("Weekly Volume", f"{weekly_volume:,.0f}")
+
+st.divider()
+
+st.subheader("Before / After Scenario Comparison")
+
+col_before, col_after, col_clear = st.columns(3)
+
+with col_before:
+    if st.button("Capture Baseline"):
+        st.session_state["before_scenario"] = current_scenario_snapshot()
+        st.success("Baseline captured.")
+
+with col_after:
+    if st.button("Run Comparison"):
+        st.session_state["after_scenario"] = current_scenario_snapshot()
+        st.success("Comparison captured.")
+
+with col_clear:
+    if st.button("Reset Comparison"):
+        st.session_state.pop("before_scenario", None)
+        st.session_state.pop("after_scenario", None)
+        st.info("Comparison cleared.")
+
+if "before_scenario" in st.session_state and "after_scenario" in st.session_state:
+    before = st.session_state["before_scenario"]
+    after = st.session_state["after_scenario"]
+
+    delta_annual = after["total_annual_savings"] - before["total_annual_savings"]
+
+    st.metric(
+        "Additional Estimated Annual Savings",
+        f"${delta_annual:,.0f}"
+    )
+
+    comparison_df = pd.DataFrame({
+        "Metric": [
+            "Yard utilization",
+            "Weekly volume",
+            "Move reduction",
+            "Rehandle reduction",
+            "Truck wait reduction",
+            "Operating cost savings",
+            "Energy cost savings",
+            "Energy saved",
+            "Rail cycle savings",
+            "Dynamic routing savings",
+            "Dry run cost savings",
+            "Compliance storage savings",
+            "Total weekly savings",
+            "Total annual savings"
+        ],
+        "Before": [
+            f"{before['yard_utilization']:.1%}",
+            f"{before['weekly_volume']:,.0f}",
+            f"{before['move_reduction']:,.0f}",
+            f"{before['rehandle_reduction']:,.0f}",
+            f"{before['wait_reduction']:.1f} min",
+            f"${before['operating_cost_savings']:,.0f}",
+            f"${before['energy_cost_savings']:,.0f}",
+            f"{before['energy_kwh_saved']:,.0f} kWh",
+            f"{before['rail_cycle_savings_days']:.1f} days",
+            f"${before['dynamic_routing_savings']:,.0f}",
+            f"${before['dry_run_cost_savings']:,.0f}",
+            f"${before['compliance_storage_cost_savings']:,.0f}",
+            f"${before['total_weekly_savings']:,.0f}",
+            f"${before['total_annual_savings']:,.0f}",
+        ],
+        "After": [
+            f"{after['yard_utilization']:.1%}",
+            f"{after['weekly_volume']:,.0f}",
+            f"{after['move_reduction']:,.0f}",
+            f"{after['rehandle_reduction']:,.0f}",
+            f"{after['wait_reduction']:.1f} min",
+            f"${after['operating_cost_savings']:,.0f}",
+            f"${after['energy_cost_savings']:,.0f}",
+            f"{after['energy_kwh_saved']:,.0f} kWh",
+            f"{after['rail_cycle_savings_days']:.1f} days",
+            f"${after['dynamic_routing_savings']:,.0f}",
+            f"${after['dry_run_cost_savings']:,.0f}",
+            f"${after['compliance_storage_cost_savings']:,.0f}",
+            f"${after['total_weekly_savings']:,.0f}",
+            f"${after['total_annual_savings']:,.0f}",
+        ],
+        "Difference": [
+            f"{after['yard_utilization'] - before['yard_utilization']:.1%}",
+            f"{after['weekly_volume'] - before['weekly_volume']:,.0f}",
+            f"{after['move_reduction'] - before['move_reduction']:,.0f}",
+            f"{after['rehandle_reduction'] - before['rehandle_reduction']:,.0f}",
+            f"{after['wait_reduction'] - before['wait_reduction']:.1f} min",
+            f"${after['operating_cost_savings'] - before['operating_cost_savings']:,.0f}",
+            f"${after['energy_cost_savings'] - before['energy_cost_savings']:,.0f}",
+            f"{after['energy_kwh_saved'] - before['energy_kwh_saved']:,.0f} kWh",
+            f"{after['rail_cycle_savings_days'] - before['rail_cycle_savings_days']:.1f} days",
+            f"${after['dynamic_routing_savings'] - before['dynamic_routing_savings']:,.0f}",
+            f"${after['dry_run_cost_savings'] - before['dry_run_cost_savings']:,.0f}",
+            f"${after['compliance_storage_cost_savings'] - before['compliance_storage_cost_savings']:,.0f}",
+            f"${after['total_weekly_savings'] - before['total_weekly_savings']:,.0f}",
+            f"${after['total_annual_savings'] - before['total_annual_savings']:,.0f}",
+        ]
+    })
+
+    st.dataframe(comparison_df, use_container_width=True)
+
+else:
+    st.info(
+        "Capture a baseline, change sidebar inputs, then run comparison to see the financial impact."
+    )
 
 st.divider()
 
@@ -1131,6 +1264,26 @@ cost_col1.metric("Operating Cost Savings", f"${operating_cost_savings:,.0f}")
 cost_col2.metric("Energy Cost Savings", f"${energy_cost_savings:,.0f}")
 cost_col3.metric("Energy Saved", f"{energy_kwh_saved:,.0f} kWh")
 cost_col4.metric("Cost / Move Assumption", f"${cost_per_equipment_move:,.0f}")
+
+col1.metric("Static Yard Capacity", f"{yard_capacity:,.0f} slots")
+col2.metric("Avg Yard Inventory", f"{avg_yard_inventory:,.0f} containers")
+col3.metric("Yard Utilization", f"{yard_utilization:.1%}")
+col4.metric("Weekly Volume", f"{weekly_volume:,.0f}")
+
+# ====================================
+# BEFORE / AFTER COMPARISON
+# ====================================
+
+st.divider()
+
+st.subheader("Before / After Scenario Comparison")
+
+# paste the entire block here
+
+st.divider()
+
+# existing code continues below
+if yard_utilization > 0.90:
 
 cost_df = pd.DataFrame({
     "Metric": [

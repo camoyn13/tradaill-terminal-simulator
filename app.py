@@ -1309,8 +1309,6 @@ if yard_utilization > 0.90:
     ]
 })
 
-st.dataframe(cost_df, use_container_width=True)
-
 st.divider()
 
 st.subheader("Terminal Flow Breakdown")

@@ -7,7 +7,7 @@ import resend
 
 def send_contact_email(company, name, email, terminal, annual_volume, message):
 
-    resend.api_key = st.secrets["re_Yj57DJng_6kJTU2YW5Lh3frfRLdxRfMmV"]
+    resend.api_key = st.secrets["RESEND_API_KEY"]
 
     resend.Emails.send({
         "from": "Tradaill Simulator <onboarding@resend.dev>",

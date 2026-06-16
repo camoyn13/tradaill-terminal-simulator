@@ -30,11 +30,24 @@ def send_contact_email(company, name, email, terminal, annual_volume, message):
 
 if submitted:
     try:
-        send_contact_email(company, name, email, terminal, annual_volume, message)
-    st.success("Thank you. Your request has been sent to Tradaill.")
-except Exception as e:
-    st.error("There was an issue sending your request. Please try again.")
+        send_contact_email(
+            company,
+            name,
+            email,
+            terminal,
+            annual_volume,
+            message
+        )
 
+        st.success(
+            "Thank you. Your request has been sent to Tradaill."
+        )
+
+    except Exception as e:
+        st.error(
+            f"There was an issue sending your request: {str(e)}"
+        )
+        
 @st.cache_data(ttl=900)
 def get_weather(city):
     geo_url = "https://geocoding-api.open-meteo.com/v1/search"

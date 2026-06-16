@@ -28,15 +28,15 @@ def send_contact_email(company, name, email, terminal, annual_volume, message):
         "text": email_body,
     })
 
-if submitted:
-    try:
-        send_contact_email(
-            company,
-            name,
-            email,
-            terminal,
-            annual_volume,
-            message
+    if submitted:
+        try:
+            send_contact_email(
+                company,
+                name,
+                email,
+                terminal,
+                annual_volume,
+                message
         )
 
         st.success(

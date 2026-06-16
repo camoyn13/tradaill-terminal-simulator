@@ -27,25 +27,7 @@ def send_contact_email(company, name, email, terminal, annual_volume, message):
         "subject": "New Terminal Simulator Contact Form Submission",
         "text": email_body,
     })
-if submitted:
-    try:
-        send_contact_email(
-            company,
-            name,
-            email,
-            terminal,
-            annual_volume,
-            message
-        )
 
-        st.success(
-            "Thank you. Your request has been sent to Tradaill."
-        )
-
-    except Exception as e:
-        st.error(
-            f"There was an issue sending your request: {str(e)}"
-        )
         
 @st.cache_data(ttl=900)
 def get_weather(city):
@@ -612,10 +594,33 @@ with st.form("contact_form"):
 
     submitted = st.form_submit_button("Request Assessment")
 
-    if submitted:
+    submitted = st.form_submit_button("Request Assessment")
+
+if submitted:
+    try:
+        send_contact_email(
+            company,
+            name,
+            email,
+            terminal,
+            annual_volume,
+            message
+        )
+
         st.success(
-            "Thank you. Your request has been recorded. "
-            "A Tradaill representative will contact you shortly."
+            "Thank you. Your request has been sent to Tradaill."
+        )
+
+        st.write("### Submission Summary")
+        st.write(f"**Company:** {company}")
+        st.write(f"**Contact:** {name}")
+        st.write(f"**Email:** {email}")
+        st.write(f"**Terminal:** {terminal}")
+        st.write(f"**Annual Volume:** {annual_volume}")
+
+    except Exception as e:
+        st.error(
+            f"There was an issue sending your request: {str(e)}"
         )
 
         st.write("### Submission Summary")

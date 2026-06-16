@@ -327,6 +327,64 @@ routing_cost_weight = st.sidebar.slider(
     help="0 = prioritize congestion relief, 1 = prioritize lowest cost"
 )
 
+st.sidebar.header("Phase 3: Chassis & Drayage Network")
+
+chassis_pool_size = st.sidebar.number_input(
+    "Available chassis pool size",
+    min_value=0,
+    value=650
+)
+
+chassis_out_of_service_rate = st.sidebar.slider(
+    "Chassis out-of-service rate",
+    min_value=0.0,
+    max_value=0.50,
+    value=0.08,
+    step=0.01
+)
+
+avg_chassis_dwell_days = st.sidebar.number_input(
+    "Average chassis dwell days",
+    min_value=0.0,
+    value=2.5,
+    step=0.5
+)
+
+drayage_drivers_available = st.sidebar.number_input(
+    "Available drayage drivers",
+    min_value=0,
+    value=120
+)
+
+driver_turns_per_day = st.sidebar.number_input(
+    "Average turns per driver per day",
+    min_value=0.0,
+    value=2.2,
+    step=0.1
+)
+
+drayage_days_per_week = st.sidebar.number_input(
+    "Drayage operating days per week",
+    min_value=1,
+    max_value=7,
+    value=6
+)
+
+failed_pickup_rate = st.sidebar.slider(
+    "Failed pickup / dry run rate",
+    min_value=0.0,
+    max_value=0.50,
+    value=0.10,
+    step=0.01
+)
+
+avg_dray_distance_miles = st.sidebar.number_input(
+    "Average drayage distance miles",
+    min_value=0.0,
+    value=42.0,
+    step=5.0
+)
+
 st.sidebar.header("Operational Assumptions")
 
 customs_hold_rate = st.sidebar.slider("Customs/document hold rate", 0.0, 0.5, 0.08)
@@ -502,6 +560,71 @@ weighted_avg_route_cost = (
     / rail_imports
     if rail_imports else 0
 )
+
+# -----------------------------
+# Phase 3: Chassis & Drayage Network
+# -----------------------------
+
+usable_chassis = chassis_pool_size * (1 - chassis_out_of_service_rate)
+
+weekly_chassis_capacity = (
+    usable_chassis * (7 / avg_chassis_dwell_days)
+    if avg_chassis_dwell_days > 0 else 0
+)
+
+weekly_driver_capacity = (
+    drayage_drivers_available
+    * driver_turns_per_day
+    * drayage_days_per_week
+)
+
+total_truck_demand = truck_imports + empty_returns_per_week
+
+effective_truck_demand = total_truck_demand * (1 + failed_pickup_rate)
+
+chassis_utilization = (
+    effective_truck_demand / weekly_chassis_capacity
+    if weekly_chassis_capacity else 0
+)
+
+driver_utilization = (
+    effective_truck_demand / weekly_driver_capacity
+    if weekly_driver_capacity else 0
+)
+
+chassis_backlog = max(0, effective_truck_demand - weekly_chassis_capacity)
+driver_backlog = max(0, effective_truck_demand - weekly_driver_capacity)
+
+drayage_constraint = max(chassis_utilization, driver_utilization)
+
+baseline_dray_delay_days = (
+    max(0, chassis_utilization - 0.85) * 3.0
+    + max(0, driver_utilization - 0.85) * 2.5
+    + failed_pickup_rate * 2.0
+)
+
+optimized_failed_pickup_rate = failed_pickup_rate * 0.65
+
+optimized_dray_delay_days = (
+    max(0, chassis_utilization - 0.90) * 2.0
+    + max(0, driver_utilization - 0.90) * 1.75
+    + optimized_failed_pickup_rate * 1.25
+)
+
+if appointment_model == "RAV Appointment-Based Pickup":
+    optimized_dray_delay_days *= 0.78
+
+dray_delay_savings_days = baseline_dray_delay_days - optimized_dray_delay_days
+
+weekly_drayage_miles = effective_truck_demand * avg_dray_distance_miles
+
+baseline_dry_runs = total_truck_demand * failed_pickup_rate
+optimized_dry_runs = total_truck_demand * optimized_failed_pickup_rate
+
+dry_run_reduction = baseline_dry_runs - optimized_dry_runs
+
+dry_run_cost_per_event = avg_dray_distance_miles * truck_cost_per_mile
+dry_run_cost_savings = dry_run_reduction * dry_run_cost_per_event
 
 estimated_rail_backlog = max(0, rail_imports - rail_departure_capacity)
 weekly_volume = weekly_imports + exports_per_week + empty_returns_per_week
@@ -808,6 +931,55 @@ if secondary_optimized_utilization > 0.85:
         "A third routing option may be needed."
     )
 
+st.divider()
+st.subheader("Phase 3: Chassis & Drayage Network")
+
+dray_col1, dray_col2, dray_col3, dray_col4 = st.columns(4)
+
+dray_col1.metric("Usable Chassis", f"{usable_chassis:,.0f}")
+dray_col2.metric("Chassis Utilization", f"{chassis_utilization:.1%}")
+dray_col3.metric("Driver Utilization", f"{driver_utilization:.1%}")
+dray_col4.metric("Dry Run Reduction", f"{dry_run_reduction:,.0f}")
+
+dray_df = pd.DataFrame({
+    "Metric": [
+        "Total weekly truck demand",
+        "Effective truck demand incl. failed pickups",
+        "Weekly chassis capacity",
+        "Weekly driver capacity",
+        "Chassis backlog",
+        "Driver backlog",
+        "Baseline drayage delay",
+        "Optimized drayage delay",
+        "Drayage delay savings",
+        "Estimated dry run cost savings"
+    ],
+    "Value": [
+        f"{total_truck_demand:,.0f}",
+        f"{effective_truck_demand:,.0f}",
+        f"{weekly_chassis_capacity:,.0f}",
+        f"{weekly_driver_capacity:,.0f}",
+        f"{chassis_backlog:,.0f}",
+        f"{driver_backlog:,.0f}",
+        f"{baseline_dray_delay_days:.1f} days",
+        f"{optimized_dray_delay_days:.1f} days",
+        f"{dray_delay_savings_days:.1f} days",
+        f"${dry_run_cost_savings:,.0f}"
+    ]
+})
+
+st.dataframe(dray_df, use_container_width=True)
+
+if chassis_utilization > 0.90:
+    st.warning(
+        "Chassis utilization is above 90%. Chassis availability may become the primary constraint."
+    )
+
+if driver_utilization > 0.90:
+    st.warning(
+        "Driver utilization is above 90%. Drayage capacity may become the primary constraint."
+    )
+
 st.subheader("Estimated Improvement")
 
 c1, c2, c3 = st.columns(3)
@@ -962,6 +1134,24 @@ output = pd.DataFrame([{
     "weighted_avg_route_cost": weighted_avg_route_cost,
     "dynamic_routing_savings": dynamic_routing_savings,
     "dynamic_routing_recommendation": dynamic_routing_recommendation,
+    "chassis_pool_size": chassis_pool_size,
+    "usable_chassis": usable_chassis,
+    "weekly_chassis_capacity": weekly_chassis_capacity,
+    "drayage_drivers_available": drayage_drivers_available,
+    "weekly_driver_capacity": weekly_driver_capacity,
+    "total_truck_demand": total_truck_demand,
+    "effective_truck_demand": effective_truck_demand,
+    "chassis_utilization": chassis_utilization,
+    "driver_utilization": driver_utilization,
+    "chassis_backlog": chassis_backlog,
+    "driver_backlog": driver_backlog,
+    "baseline_dray_delay_days": baseline_dray_delay_days,
+    "optimized_dray_delay_days": optimized_dray_delay_days,
+    "dray_delay_savings_days": dray_delay_savings_days,
+    "baseline_dry_runs": baseline_dry_runs,
+    "optimized_dry_runs": optimized_dry_runs,
+    "dry_run_reduction": dry_run_reduction,
+    "dry_run_cost_savings": dry_run_cost_savings,
 }])
 
 csv = output.to_csv(index=False).encode("utf-8")

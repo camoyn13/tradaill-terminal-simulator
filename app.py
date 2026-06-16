@@ -591,10 +591,10 @@ with st.form("contact_form"):
         "Tell us about your operation",
         placeholder="Describe your terminal, current challenges, dwell times, congestion issues, etc."
     )
-
-    submitted = st.form_submit_button("Request Assessment")
-
-    submitted = st.form_submit_button("Request Assessment")
+    submitted = st.form_submit_button(
+        "Request Assessment",
+    key="contact_form_submit_button"
+)
 
 if submitted:
     try:

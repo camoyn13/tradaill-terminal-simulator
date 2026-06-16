@@ -1285,7 +1285,7 @@ st.divider()
 # existing code continues below
 if yard_utilization > 0.90:
 
-cost_df = pd.DataFrame({
+    cost_df = pd.DataFrame({
     "Metric": [
         "Move operating cost",
         "Energy usage",

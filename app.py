@@ -200,6 +200,57 @@ appointment_model = st.sidebar.selectbox(
     ["Free-Time / Random Pickup", "RAV Appointment-Based Pickup"]
 )
 
+st.sidebar.header("Phase 2: Inland Rail Dependency")
+
+rail_share = st.sidebar.slider(
+    "Percent of imports moving inland by rail",
+    min_value=0.0,
+    max_value=1.0,
+    value=0.35,
+    step=0.05
+)
+
+train_departures_per_week = st.sidebar.number_input(
+    "Train departures per week",
+    min_value=1,
+    value=5
+)
+
+rail_dwell_hours = st.sidebar.number_input(
+    "Average rail dwell at marine terminal (hours)",
+    min_value=0.0,
+    value=36.0,
+    step=6.0
+)
+
+rail_transit_days = st.sidebar.number_input(
+    "Average rail transit time to inland ramp (days)",
+    min_value=0.0,
+    value=4.0,
+    step=0.5
+)
+
+inland_ramp_capacity_per_day = st.sidebar.number_input(
+    "Inland ramp capacity per day",
+    min_value=1,
+    value=250
+)
+
+inland_ramp_dwell_days = st.sidebar.number_input(
+    "Average inland ramp dwell days",
+    min_value=0.0,
+    value=2.0,
+    step=0.5
+)
+
+rail_delay_rate = st.sidebar.slider(
+    "Rail delay / missed connection rate",
+    min_value=0.0,
+    max_value=0.75,
+    value=0.15,
+    step=0.05
+)
+
 st.sidebar.header("Operational Assumptions")
 
 customs_hold_rate = st.sidebar.slider("Customs/document hold rate", 0.0, 0.5, 0.08)
@@ -243,6 +294,49 @@ fuel_or_maintenance_adder = st.sidebar.number_input(
 yard_capacity = yard_blocks * block_bays * block_rows * max_stack_height
 
 weekly_imports = vessels_per_week * imports_per_vessel
+rail_imports = weekly_imports * rail_share
+truck_imports = weekly_imports * (1 - rail_share)
+
+rail_departure_capacity = train_departures_per_week * 250
+rail_capacity_ratio = rail_departure_capacity / rail_imports if rail_imports else 1
+
+inland_weekly_capacity = inland_ramp_capacity_per_day * 7
+inland_ramp_utilization = rail_imports / inland_weekly_capacity if inland_weekly_capacity else 0
+
+rail_delay_penalty_days = rail_delay_rate * 2.5
+
+baseline_rail_cycle_days = (
+    rail_dwell_hours / 24
+    + rail_transit_days
+    + inland_ramp_dwell_days
+    + rail_delay_penalty_days
+)
+
+optimized_rail_cycle_days = (
+    (rail_dwell_hours * 0.72) / 24
+    + rail_transit_days
+    + (inland_ramp_dwell_days * 0.78)
+    + (rail_delay_penalty_days * 0.65)
+)
+
+if appointment_model == "RAV Appointment-Based Pickup":
+    optimized_rail_cycle_days *= 0.90
+
+rail_cycle_savings_days = baseline_rail_cycle_days - optimized_rail_cycle_days
+
+baseline_inland_congestion_score = min(
+    100,
+    (inland_ramp_utilization * 75)
+    + (rail_delay_rate * 35)
+    + ((1 / rail_capacity_ratio) * 20 if rail_capacity_ratio < 1 else 0)
+)
+
+optimized_inland_congestion_score = min(
+    100,
+    baseline_inland_congestion_score * 0.72
+)
+
+estimated_rail_backlog = max(0, rail_imports - rail_departure_capacity)
 weekly_volume = weekly_imports + exports_per_week + empty_returns_per_week
 
 avg_daily_imports = weekly_imports / 7
@@ -445,6 +539,53 @@ results = pd.DataFrame({
 })
 
 st.dataframe(results, use_container_width=True)
+
+st.divider()
+
+st.subheader("Phase 2: Inland Rail Dependency")
+
+rail_col1, rail_col2, rail_col3, rail_col4 = st.columns(4)
+
+rail_col1.metric("Rail-Bound Imports", f"{rail_imports:,.0f}")
+rail_col2.metric("Truck-Bound Imports", f"{truck_imports:,.0f}")
+rail_col3.metric("Rail Cycle Savings", f"{rail_cycle_savings_days:.1f} days")
+rail_col4.metric("Estimated Rail Backlog", f"{estimated_rail_backlog:,.0f}")
+
+rail_df = pd.DataFrame({
+    "Metric": [
+        "Rail-bound import containers",
+        "Truck-bound import containers",
+        "Train weekly departure capacity",
+        "Rail capacity ratio",
+        "Inland ramp utilization",
+        "Baseline rail cycle time",
+        "Optimized rail cycle time",
+        "Inland congestion score"
+    ],
+    "Value": [
+        f"{rail_imports:,.0f}",
+        f"{truck_imports:,.0f}",
+        f"{rail_departure_capacity:,.0f}",
+        f"{rail_capacity_ratio:.2f}x",
+        f"{inland_ramp_utilization:.1%}",
+        f"{baseline_rail_cycle_days:.1f} days",
+        f"{optimized_rail_cycle_days:.1f} days",
+        f"{optimized_inland_congestion_score:.1f}/100"
+    ]
+})
+
+st.dataframe(rail_df, use_container_width=True)
+
+if rail_capacity_ratio < 1:
+    st.warning(
+        "Rail departure capacity is lower than rail-bound import volume. "
+        "Containers may build backlog at the marine terminal."
+    )
+
+if inland_ramp_utilization > 0.85:
+    st.warning(
+        "Inland ramp utilization is high. Destination ramp congestion may delay final delivery."
+    )
 
 st.subheader("Estimated Improvement")
 

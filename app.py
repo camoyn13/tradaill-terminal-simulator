@@ -385,6 +385,47 @@ avg_dray_distance_miles = st.sidebar.number_input(
     step=5.0
 )
 
+st.sidebar.header("Phase 4: TIQ Compliance & Release Status")
+
+documentation_complete_rate = st.sidebar.slider(
+    "Documentation complete rate",
+    min_value=0.0,
+    max_value=1.0,
+    value=0.88,
+    step=0.02
+)
+
+customs_release_rate = st.sidebar.slider(
+    "Customs release rate",
+    min_value=0.0,
+    max_value=1.0,
+    value=0.84,
+    step=0.02
+)
+
+exam_hold_rate = st.sidebar.slider(
+    "CBP exam / inspection hold rate",
+    min_value=0.0,
+    max_value=0.30,
+    value=0.06,
+    step=0.01
+)
+
+tiq_preclearance_effectiveness = st.sidebar.slider(
+    "TIQ pre-clearance effectiveness",
+    min_value=0.0,
+    max_value=1.0,
+    value=0.55,
+    step=0.05
+)
+
+avg_hold_delay_days = st.sidebar.number_input(
+    "Average hold delay days",
+    min_value=0.0,
+    value=3.0,
+    step=0.5
+)
+
 st.sidebar.header("Operational Assumptions")
 
 customs_hold_rate = st.sidebar.slider("Customs/document hold rate", 0.0, 0.5, 0.08)
@@ -637,6 +678,55 @@ avg_yard_inventory = (
     avg_daily_imports * import_dwell_days
     + avg_daily_exports * export_dwell_days
     + avg_daily_empties * empty_dwell_days
+)
+
+# -----------------------------
+# Phase 4: TIQ Compliance & Release Status
+# -----------------------------
+
+docs_incomplete_containers = weekly_imports * (1 - documentation_complete_rate)
+customs_unreleased_containers = weekly_imports * (1 - customs_release_rate)
+exam_hold_containers = weekly_imports * exam_hold_rate
+
+baseline_compliance_blocked = (
+    docs_incomplete_containers
+    + customs_unreleased_containers
+    + exam_hold_containers
+)
+
+optimized_docs_incomplete = docs_incomplete_containers * (1 - tiq_preclearance_effectiveness)
+optimized_customs_unreleased = customs_unreleased_containers * (1 - tiq_preclearance_effectiveness * 0.75)
+optimized_exam_holds = exam_hold_containers * (1 - tiq_preclearance_effectiveness * 0.35)
+
+optimized_compliance_blocked = (
+    optimized_docs_incomplete
+    + optimized_customs_unreleased
+    + optimized_exam_holds
+)
+
+compliance_blocked_reduction = baseline_compliance_blocked - optimized_compliance_blocked
+
+baseline_compliance_delay_days = (
+    (baseline_compliance_blocked / weekly_imports) * avg_hold_delay_days
+    if weekly_imports else 0
+)
+
+optimized_compliance_delay_days = (
+    (optimized_compliance_blocked / weekly_imports) * avg_hold_delay_days
+    if weekly_imports else 0
+)
+
+compliance_delay_savings_days = (
+    baseline_compliance_delay_days
+    - optimized_compliance_delay_days
+)
+
+blocked_container_storage_cost_per_day = cost_per_equipment_move * 0.35
+
+compliance_storage_cost_savings = (
+    compliance_blocked_reduction
+    * avg_hold_delay_days
+    * blocked_container_storage_cost_per_day
 )
 
 yard_utilization = avg_yard_inventory / yard_capacity if yard_capacity else 0
@@ -980,6 +1070,49 @@ if driver_utilization > 0.90:
         "Driver utilization is above 90%. Drayage capacity may become the primary constraint."
     )
 
+st.divider()
+
+st.subheader("Phase 4: TIQ Compliance & Release Status")
+
+tiq_col1, tiq_col2, tiq_col3, tiq_col4 = st.columns(4)
+
+tiq_col1.metric("Blocked Containers Reduced", f"{compliance_blocked_reduction:,.0f}")
+tiq_col2.metric("Compliance Delay Savings", f"{compliance_delay_savings_days:.1f} days")
+tiq_col3.metric("Storage Cost Savings", f"${compliance_storage_cost_savings:,.0f}")
+tiq_col4.metric("Preclearance Effectiveness", f"{tiq_preclearance_effectiveness:.0%}")
+
+tiq_df = pd.DataFrame({
+    "Metric": [
+        "Docs incomplete containers",
+        "Customs unreleased containers",
+        "CBP exam hold containers",
+        "Baseline compliance-blocked containers",
+        "Optimized compliance-blocked containers",
+        "Blocked container reduction",
+        "Baseline compliance delay",
+        "Optimized compliance delay",
+        "Estimated storage cost savings"
+    ],
+    "Value": [
+        f"{docs_incomplete_containers:,.0f}",
+        f"{customs_unreleased_containers:,.0f}",
+        f"{exam_hold_containers:,.0f}",
+        f"{baseline_compliance_blocked:,.0f}",
+        f"{optimized_compliance_blocked:,.0f}",
+        f"{compliance_blocked_reduction:,.0f}",
+        f"{baseline_compliance_delay_days:.1f} days",
+        f"{optimized_compliance_delay_days:.1f} days",
+        f"${compliance_storage_cost_savings:,.0f}"
+    ]
+})
+
+st.dataframe(tiq_df, use_container_width=True)
+
+if baseline_compliance_blocked / weekly_imports > 0.20 if weekly_imports else False:
+    st.warning(
+        "More than 20% of imports are compliance-blocked. Documentation and release status may be a major bottleneck."
+    )
+
 st.subheader("Estimated Improvement")
 
 c1, c2, c3 = st.columns(3)
@@ -1152,6 +1285,20 @@ output = pd.DataFrame([{
     "optimized_dry_runs": optimized_dry_runs,
     "dry_run_reduction": dry_run_reduction,
     "dry_run_cost_savings": dry_run_cost_savings,
+    "documentation_complete_rate": documentation_complete_rate,
+    "customs_release_rate": customs_release_rate,
+    "exam_hold_rate": exam_hold_rate,
+    "tiq_preclearance_effectiveness": tiq_preclearance_effectiveness,
+    "docs_incomplete_containers": docs_incomplete_containers,
+    "customs_unreleased_containers": customs_unreleased_containers,
+    "exam_hold_containers": exam_hold_containers,
+    "baseline_compliance_blocked": baseline_compliance_blocked,
+    "optimized_compliance_blocked": optimized_compliance_blocked,
+    "compliance_blocked_reduction": compliance_blocked_reduction,
+    "baseline_compliance_delay_days": baseline_compliance_delay_days,
+    "optimized_compliance_delay_days": optimized_compliance_delay_days,
+    "compliance_delay_savings_days": compliance_delay_savings_days,
+    "compliance_storage_cost_savings": compliance_storage_cost_savings,
 }])
 
 csv = output.to_csv(index=False).encode("utf-8")

@@ -12,15 +12,36 @@ def send_contact_email(company, name, email, terminal, annual_volume, message):
     email_body = f"""
 New Tradaill Terminal Simulator Lead
 
+CONTACT INFORMATION
 Company: {company}
 Contact Name: {name}
 Email: {email}
 Terminal / Port: {terminal}
 Annual Volume: {annual_volume}
 
-Message:
+SIMULATION RESULTS
+Yard Utilization: {yard_utilization:.1%}
+Weekly Volume: {weekly_volume:,.0f} containers
+Average Yard Inventory: {avg_yard_inventory:,.0f} containers
+
+Move Reduction: {baseline_total_moves - optimized_total_moves:,.0f}
+Rehandle Reduction: {baseline_rehandles - optimized_rehandles:,.0f}
+Truck Wait Reduction: {baseline_wait - optimized_wait:.1f} minutes
+
+Operating Cost Savings: ${operating_cost_savings:,.0f}
+Energy Cost Savings: ${energy_cost_savings:,.0f}
+Energy Saved: {energy_kwh_saved:,.0f} kWh
+
+USER MESSAGE
 {message}
 """
+
+    resend.Emails.send({
+        "from": "Tradaill Simulator <onboarding@resend.dev>",
+        "to": ["conor.moynihan@tradaill.com"],
+        "subject": f"Terminal Simulator Lead - {company}",
+        "text": email_body
+    })
 
     resend.Emails.send({
         "from": "Tradaill Simulator <onboarding@resend.dev>",

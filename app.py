@@ -3,6 +3,37 @@ import pandas as pd
 import numpy as np
 import math
 import requests
+import resend
+
+def send_contact_email(company, name, email, terminal, annual_volume, message):
+    resend.api_key = st.secrets["RESEND_API_KEY"]
+
+    email_body = f"""
+    New Tradaill Terminal Simulator Lead
+
+    Company: {company}
+    Name: {name}
+    Email: {email}
+    Terminal / Port: {terminal}
+    Annual Volume: {annual_volume}
+
+    Message:
+    {message}
+    """
+
+    resend.Emails.send({
+        "from": "Tradaill Simulator <onboarding@resend.dev>",
+        "to": ["conor.moynihan@tradaill.com"],
+        "subject": "New Terminal Simulator Contact Form Submission",
+        "text": email_body,
+    })
+
+if submitted:
+    try:
+    send_contact_email(company, name, email, terminal, annual_volume, message)
+    st.success("Thank you. Your request has been sent to Tradaill.")
+except Exception as e:
+    st.error("There was an issue sending your request. Please try again.")
 
 @st.cache_data(ttl=900)
 def get_weather(city):
@@ -543,5 +574,43 @@ st.download_button(
     "tradaill_terminal_simulation_results.csv",
     "text/csv"
 )
+
+st.divider()
+
+st.header("Contact Tradaill")
+
+st.markdown("""
+Interested in reducing container rehandles, improving truck turn times,
+or evaluating appointment-based pickup models for your terminal?
+
+Complete the form below and a member of the Tradaill team will reach out.
+""")
+
+with st.form("contact_form"):
+
+    company = st.text_input("Company")
+    name = st.text_input("Name")
+    email = st.text_input("Email")
+    terminal = st.text_input("Terminal / Port")
+    annual_volume = st.text_input("Annual Container Volume (TEU)")
+    message = st.text_area(
+        "Tell us about your operation",
+        placeholder="Describe your terminal, current challenges, dwell times, congestion issues, etc."
+    )
+
+    submitted = st.form_submit_button("Request Assessment")
+
+    if submitted:
+        st.success(
+            "Thank you. Your request has been recorded. "
+            "A Tradaill representative will contact you shortly."
+        )
+
+        st.write("### Submission Summary")
+        st.write(f"**Company:** {company}")
+        st.write(f"**Contact:** {name}")
+        st.write(f"**Email:** {email}")
+        st.write(f"**Terminal:** {terminal}")
+        st.write(f"**Annual Volume:** {annual_volume}")
 
 st.caption("Prototype simulator. Results are estimated and should be calibrated against actual terminal move logs, truck turn times, dwell data, and equipment productivity.")

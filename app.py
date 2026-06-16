@@ -1343,8 +1343,6 @@ st.dataframe(equipment_df, use_container_width=True)
 
 st.subheader("Estimated Yard Block Utilization")
 
-st.dataframe(cost_df, use_container_width=True)
-
 np.random.seed(7)
 block_ids = [f"Block {i+1}" for i in range(yard_blocks)]
 

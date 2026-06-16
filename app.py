@@ -9,20 +9,24 @@ def send_contact_email(company, name, email, terminal, annual_volume, message):
 
     resend.api_key = st.secrets["RESEND_API_KEY"]
 
-    resend.Emails.send({
-        "from": "Tradaill Simulator <onboarding@resend.dev>",
-        "to": ["conor.moynihan@tradaill.com"],
-        "subject": f"Terminal Simulator Lead - {company}",
-        "text": f"""
+    email_body = f"""
+New Tradaill Terminal Simulator Lead
+
 Company: {company}
-Name: {name}
+Contact Name: {name}
 Email: {email}
-Terminal: {terminal}
+Terminal / Port: {terminal}
 Annual Volume: {annual_volume}
 
 Message:
 {message}
 """
+
+    resend.Emails.send({
+        "from": "Tradaill Simulator <onboarding@resend.dev>",
+        "to": ["conor.moynihan@tradaill.com"],
+        "subject": f"Terminal Simulator Lead - {company}",
+        "text": email_body
     })
 
     resend.Emails.send({

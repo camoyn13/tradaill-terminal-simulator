@@ -163,11 +163,35 @@ max_stack_height = st.sidebar.number_input("Max stack height", min_value=1, valu
 
 crane_corridors = st.sidebar.number_input("Crane corridors", min_value=1, value=5)
 truck_roads = st.sidebar.number_input("Truck receiving roads", min_value=1, value=2)
+yard_operating_efficiency = st.sidebar.slider(
+    "Usable yard capacity factor",
+    min_value=0.50,
+    max_value=1.00,
+    value=0.78,
+    step=0.02,
+    help="Accounts for access lanes, reserved areas, weight restrictions, reefer zones, hazmat areas, and operational buffers."
+)
 
 st.sidebar.header("Vessel Flow")
 
 vessels_per_week = st.sidebar.number_input("Vessels per week", min_value=0, value=2)
 imports_per_vessel = st.sidebar.slider("Import containers discharged per vessel", 100, 1000, 500)
+discharge_days_per_vessel = st.sidebar.number_input(
+    "Discharge days per vessel",
+    min_value=1.0,
+    value=1.5,
+    step=0.5,
+    help="How many days it takes the terminal to discharge import containers from each vessel."
+)
+
+vessel_surge_buffer = st.sidebar.slider(
+    "Vessel surge buffer",
+    min_value=0.0,
+    max_value=1.0,
+    value=0.25,
+    step=0.05,
+    help="Extra yard pressure caused by vessel bunching, peak discharge windows, delayed pickups, and uneven arrivals."
+)
 exports_per_week = st.sidebar.number_input("Export containers received per week", min_value=0, value=450)
 empty_returns_per_week = st.sidebar.number_input("Empty returns per week", min_value=0, value=350)
 
@@ -466,7 +490,17 @@ fuel_or_maintenance_adder = st.sidebar.number_input(
 # Core Calculations
 # -----------------------------
 
-yard_capacity = yard_blocks * block_bays * block_rows * max_stack_height
+theoretical_yard_capacity = (
+    yard_blocks
+    * block_bays
+    * block_rows
+    * max_stack_height
+)
+
+yard_capacity = (
+    theoretical_yard_capacity
+    * yard_operating_efficiency
+)
 
 weekly_imports = vessels_per_week * imports_per_vessel
 rail_imports = weekly_imports * rail_share
@@ -674,11 +708,34 @@ avg_daily_imports = weekly_imports / 7
 avg_daily_exports = exports_per_week / 7
 avg_daily_empties = empty_returns_per_week / 7
 
-avg_yard_inventory = (
-    avg_daily_imports * import_dwell_days
-    + avg_daily_exports * export_dwell_days
-    + avg_daily_empties * empty_dwell_days
+avg_import_inventory = avg_daily_imports * import_dwell_days
+avg_export_inventory = avg_daily_exports * export_dwell_days
+avg_empty_inventory = avg_daily_empties * empty_dwell_days
+
+average_yard_inventory = (
+    avg_import_inventory
+    + avg_export_inventory
+    + avg_empty_inventory
 )
+
+vessel_discharge_rate_per_day = (
+    imports_per_vessel / discharge_days_per_vessel
+    if discharge_days_per_vessel else imports_per_vessel
+)
+
+peak_import_surge_inventory = (
+    vessel_discharge_rate_per_day
+    * import_dwell_days
+    * vessel_surge_buffer
+)
+
+peak_yard_inventory = (
+    average_yard_inventory
+    + peak_import_surge_inventory
+)
+
+avg_yard_inventory = peak_yard_inventory
+
 
 # -----------------------------
 # Phase 4: TIQ Compliance & Release Status
@@ -899,6 +956,50 @@ col1.metric("Static Yard Capacity", f"{yard_capacity:,.0f} slots")
 col2.metric("Avg Yard Inventory", f"{avg_yard_inventory:,.0f} containers")
 col3.metric("Yard Utilization", f"{yard_utilization:.1%}")
 col4.metric("Weekly Volume", f"{weekly_volume:,.0f}")
+
+st.subheader("Vessel Discharge Surge")
+
+surge_col1, surge_col2, surge_col3, surge_col4 = st.columns(4)
+
+surge_col1.metric("Avg Inventory", f"{average_yard_inventory:,.0f}")
+surge_col2.metric("Peak Surge Inventory", f"{peak_import_surge_inventory:,.0f}")
+surge_col3.metric("Peak Yard Inventory", f"{peak_yard_inventory:,.0f}")
+surge_col4.metric("Discharge Rate / Day", f"{vessel_discharge_rate_per_day:,.0f}")
+
+surge_df = pd.DataFrame({
+    "Metric": [
+        "Vessels per week",
+        "Imports per vessel",
+        "Discharge days per vessel",
+        "Discharge rate per day",
+        "Average import inventory",
+        "Average export inventory",
+        "Average empty inventory",
+        "Base average yard inventory",
+        "Peak import surge inventory",
+        "Peak yard inventory"
+    ],
+    "Value": [
+        f"{vessels_per_week:,.0f}",
+        f"{imports_per_vessel:,.0f}",
+        f"{discharge_days_per_vessel:.1f}",
+        f"{vessel_discharge_rate_per_day:,.0f}",
+        f"{avg_import_inventory:,.0f}",
+        f"{avg_export_inventory:,.0f}",
+        f"{avg_empty_inventory:,.0f}",
+        f"{average_yard_inventory:,.0f}",
+        f"{peak_import_surge_inventory:,.0f}",
+        f"{peak_yard_inventory:,.0f}",
+    ]
+})
+
+st.dataframe(surge_df, use_container_width=True)
+
+if peak_yard_inventory / yard_capacity > 0.85 if yard_capacity else False:
+    st.warning(
+        "Peak vessel discharge surge is pushing the yard above 85% utilization. "
+        "This is where rehandles, truck delays, and rail backlog risk increase."
+    )
 
 st.divider()
 
